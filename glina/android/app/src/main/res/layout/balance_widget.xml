@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/widget_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:adjustViewBounds="true"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/balance_widget_bg"
+        android:gravity="center"
+        android:text="Открой Tiyn"
+        android:textColor="@color/widget_fg"
+        android:textSize="15sp" />
+    <FrameLayout
+        android:id="@+id/widget_add"
+        android:layout_width="84dp"
+        android:layout_height="72dp"
+        android:layout_gravity="bottom|end" />
+</FrameLayout>

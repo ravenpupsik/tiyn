@@ -1,0 +1,64 @@
+{
+  "app": "tiyn",
+  "version": 1,
+  "createdAt": "2026-11-14T17:55:00+05:00",
+  "data": {
+    "transactions": [
+      {
+        "id": "g1",
+        "amount": 36000,
+        "kind": "income",
+        "isIncome": true,
+        "category": "Стипендия",
+        "note": "за ноябрь",
+        "date": "2026-11-10T12:00:00.000"
+      },
+      {
+        "id": "g2",
+        "amount": 900,
+        "kind": "expense",
+        "isIncome": false,
+        "category": "Кафе",
+        "note": "кофе",
+        "date": "2026-11-12T14:12:00.000"
+      },
+      {
+        "id": "g3",
+        "amount": 5000,
+        "kind": "toPiggy",
+        "isIncome": false,
+        "category": "",
+        "note": "",
+        "date": "2026-11-12T15:00:00.000"
+      },
+      {
+        "id": "g4",
+        "amount": 700,
+        "kind": "expense",
+        "isIncome": false,
+        "category": "Хобби",
+        "note": "неизвестная категория",
+        "date": "2026-11-13T09:30:00.000"
+      }
+    ],
+    "plans": [
+      {
+        "id": "p1",
+        "title": "Зубной",
+        "amount": 15000,
+        "category": "Другое",
+        "due": null
+      }
+    ],
+    "piggyStart": 19000,
+    "lastCatExpense": "Кафе",
+    "lastCatIncome": "Стипендия",
+    "remind": {
+      "on": true,
+      "h": 23,
+      "m": 0
+    },
+    "themeMode": "dark",
+    "accent": "clay"
+  }
+}
