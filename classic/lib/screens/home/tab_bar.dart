@@ -33,7 +33,7 @@ class HomeTabBar extends StatelessWidget {
               child: FrostedGlass(
                 radius: const BorderRadius.all(Radius.circular(31)),
                 padding: const EdgeInsets.all(5),
-                blur: 20,
+                blur: 12,
                 child: SizedBox(
                   height: 52,
                   child: Row(

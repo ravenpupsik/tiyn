@@ -1,3 +1,5 @@
+import 'package:money_app/data/category.dart';
+
 /// Piggy-bank transfers are neither income nor expense: money just moves.
 enum TxnKind { expense, income, toPiggy, fromPiggy }
 
@@ -54,7 +56,7 @@ class Txn {
       id: j['id'] as String,
       amount: j['amount'] as int,
       kind: kind,
-      category: (j['category'] ?? '') as String,
+      category: canonicalCategory((j['category'] ?? '') as String),
       note: (j['note'] ?? '') as String,
       date: DateTime.parse(j['date'] as String),
     );

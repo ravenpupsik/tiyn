@@ -24,7 +24,21 @@ const incomeCategories = [
   Category('Другое', Icons.more_horiz_rounded, Color(0xFF8E8E93)),
 ];
 
+String _fold(String s) => s.trim().toLowerCase().replaceAll('ё', 'е');
+
+/// Maps any casing of a known category name ("ДРУГОЕ", "другое") to its
+/// canonical spelling. Unknown names are only trimmed.
+String canonicalCategory(String name) {
+  final key = _fold(name);
+  if (key.isEmpty) return '';
+  for (final c in [...expenseCategories, ...incomeCategories]) {
+    if (_fold(c.name) == key) return c.name;
+  }
+  return name.trim();
+}
+
 Category findCategory(String name, bool isIncome) {
   final list = isIncome ? incomeCategories : expenseCategories;
-  return list.firstWhere((c) => c.name == name, orElse: () => list.last);
+  final key = _fold(name);
+  return list.firstWhere((c) => _fold(c.name) == key, orElse: () => list.last);
 }

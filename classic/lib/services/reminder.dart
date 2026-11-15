@@ -46,29 +46,47 @@ class Reminder {
 
   static Future<void> refresh() => reschedule(_lastItems);
 
-  static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    settings.value = (
-      prefs.getBool('remind_on') ?? false,
-      prefs.getInt('remind_h') ?? 21,
-      prefs.getInt('remind_m') ?? 0,
-    );
+  static final _ready = Completer<void>();
+  static Future<void>? _pluginInit;
+
+  static Future<void> _initPlugin() => _pluginInit ??= _plugin.initialize(
+    settings: const InitializationSettings(
+      android: AndroidInitializationSettings('ic_stat_tiyn'),
+    ),
+    onDidReceiveNotificationResponse: (_) => openAdd.value++,
+  );
+
+  /// Cheap check needed before the first frame: was the app opened from a
+  /// notification tap?
+  static Future<void> detectLaunch() async {
     if (!platformEnabled) return;
-    tzdata.initializeTimeZones();
-    try {
-      final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone.identifier));
-    } catch (_) {
-      tz.setLocalLocation(tz.getLocation('Asia/Almaty'));
-    }
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('ic_stat_tiyn'),
-      ),
-      onDidReceiveNotificationResponse: (_) => openAdd.value++,
-    );
+    await _initPlugin();
     final launch = await _plugin.getNotificationAppLaunchDetails();
-    launchedFromTap = launch?.didNotificationLaunchApp ?? false;
+    if (launch?.didNotificationLaunchApp ?? false) launchedFromTap = true;
+  }
+
+  /// Slower setup (time zones), run after the first frame. [reschedule] waits
+  /// for it.
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      settings.value = (
+        prefs.getBool('remind_on') ?? false,
+        prefs.getInt('remind_h') ?? 21,
+        prefs.getInt('remind_m') ?? 0,
+      );
+      if (!platformEnabled) return;
+      tzdata.initializeTimeZones();
+      try {
+        final zone = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(zone.identifier));
+      } catch (_) {
+        tz.setLocalLocation(tz.getLocation('Asia/Almaty'));
+      }
+      await _initPlugin();
+    } finally {
+      if (!_ready.isCompleted) _ready.complete();
+    }
   }
 
   static Future<void> reloadSettings() async {
@@ -129,6 +147,8 @@ class Reminder {
 
   static Future<void> reschedule(List<Txn> items) async {
     _lastItems = items;
+    if (!platformEnabled) return;
+    await _ready.future;
     if (!platformEnabled) return;
     try {
       for (var i = 0; i < _days; i++) {

@@ -10,12 +10,40 @@ import 'package:money_app/theme/tokens.dart';
 /// back to plain blurred blobs.
 FragmentProgram? chromeProgram;
 
+/// Flips to true once loading the shader has finished, whether it worked or
+/// not. Until then the background is a still picture.
+final chromeLoaded = ValueNotifier<bool>(false);
+
+/// Called after the first frame, so the shader does not delay the start.
+Future<void> loadChromeProgram() async {
+  try {
+    chromeProgram = await FragmentProgram.fromAsset('shaders/chrome.frag');
+  } catch (_) {
+    chromeProgram = null;
+  }
+  chromeLoaded.value = true;
+}
+
 /// Kill switch for the background "breathing" animation. Tests turn it off too.
 bool breathingEnabled = true;
 
 /// Pauses the background animation while scrolling or while an input sheet is
 /// open, so the glass above it is not recomputed needlessly.
 final backdropPaused = ValueNotifier<bool>(false);
+
+int _pauseHolds = 0;
+
+/// Every [pauseBackdrop] needs one [resumeBackdrop]; the animation runs again
+/// only when nobody holds it (scroll, sheet and route transition can overlap).
+void pauseBackdrop() {
+  _pauseHolds++;
+  backdropPaused.value = true;
+}
+
+void resumeBackdrop() {
+  if (_pauseHolds > 0) _pauseHolds--;
+  backdropPaused.value = _pauseHolds > 0;
+}
 
 class Backdrop extends StatefulWidget {
   const Backdrop({super.key});
@@ -39,8 +67,15 @@ class _BackdropState extends State<Backdrop>
   double _pending = 0;
 
   bool get _useShader => chromeProgram != null;
-  late final FragmentShader? _shader = chromeProgram?.fragmentShader();
+  FragmentShader? _shader;
   bool _inactive = false;
+
+  void _onChromeLoaded() {
+    if (!chromeLoaded.value || !mounted) return;
+    if (chromeProgram != null) _shader ??= chromeProgram!.fragmentShader();
+    setState(() {});
+    _sync();
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -62,6 +97,8 @@ class _BackdropState extends State<Backdrop>
     super.initState();
     backdropPaused.addListener(_sync);
     WidgetsBinding.instance.addObserver(this);
+    chromeLoaded.addListener(_onChromeLoaded);
+    if (chromeProgram != null) _shader = chromeProgram!.fragmentShader();
   }
 
   @override
@@ -75,9 +112,12 @@ class _BackdropState extends State<Backdrop>
     final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     // Paused while the keyboard is open so the text field stays responsive.
     final keyboard = (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0;
+    // While the shader is still loading the background stays still.
+    final settled = _useShader || chromeLoaded.value;
     final run =
         breathingEnabled &&
         !reduce &&
+        settled &&
         !backdropPaused.value &&
         !(_useShader && (_inactive || keyboard));
     if (_useShader) {
@@ -100,6 +140,7 @@ class _BackdropState extends State<Backdrop>
   @override
   void dispose() {
     backdropPaused.removeListener(_sync);
+    chromeLoaded.removeListener(_onChromeLoaded);
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.dispose();
     _shader?.dispose();
@@ -110,8 +151,18 @@ class _BackdropState extends State<Backdrop>
 
   @override
   Widget build(BuildContext context) {
+    final shaderReady = _useShader && _shader != null;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      child: KeyedSubtree(key: ValueKey(shaderReady), child: _layer(context)),
+    );
+  }
+
+  Widget _layer(BuildContext context) {
     final dark = isDark(context);
-    if (_useShader) {
+    if (_useShader && _shader != null) {
       return RepaintBoundary(
         child: CustomPaint(
           size: Size.infinite,
@@ -263,19 +314,82 @@ class _Blob extends StatelessWidget {
   }
 }
 
-class PauseBackdropOnScroll extends StatelessWidget {
+/// Pauses the background while the list scrolls and shows a thin edge under
+/// the status bar once the content has moved.
+class PauseBackdropOnScroll extends StatefulWidget {
   final Widget child;
   const PauseBackdropOnScroll({super.key, required this.child});
 
   @override
+  State<PauseBackdropOnScroll> createState() => _PauseBackdropOnScrollState();
+}
+
+class _PauseBackdropOnScrollState extends State<PauseBackdropOnScroll> {
+  final _scrolled = ValueNotifier<bool>(false);
+  bool _held = false;
+
+  void _hold(bool value) {
+    if (value == _held) return;
+    _held = value;
+    value ? pauseBackdrop() : resumeBackdrop();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    if (n is ScrollStartNotification) _hold(true);
+    if (n is ScrollEndNotification) _hold(false);
+    _scrolled.value = n.metrics.pixels > 2;
+    return false;
+  }
+
+  @override
+  void dispose() {
+    if (_held) resumeBackdrop();
+    _scrolled.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final line = Theme.of(context).colorScheme.onSurface;
     return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n is ScrollStartNotification) backdropPaused.value = true;
-        if (n is ScrollEndNotification) backdropPaused.value = false;
-        return false;
-      },
-      child: child,
+      onNotification: _onScroll,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          Positioned(
+            top: MediaQuery.paddingOf(context).top,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _scrolled,
+                builder: (_, scrolled, _) => AnimatedOpacity(
+                  opacity: scrolled ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: line.withValues(alpha: 0.1)),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          line.withValues(alpha: 0.06),
+                          line.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                    child: const SizedBox(height: 10),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

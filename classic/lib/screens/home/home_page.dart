@@ -119,6 +119,7 @@ class _HomePageState extends State<HomePage> {
                         for (final t in items) {
                           groups.putIfAbsent(dateOnly(t.date), () => []).add(t);
                         }
+                        final days = groups.entries.toList();
                         return CustomScrollView(
                           slivers: [
                             SliverSafeArea(
@@ -279,29 +280,35 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               )
                             else
-                              for (final entry in groups.entries) ...[
-                                SliverToBoxAdapter(
-                                  child: GroupTitle(
-                                    formatDayHeader(entry.key, now: now),
-                                    // Day total counts expenses only; a day
-                                    // with only income shows no sum.
-                                    sum: hasSpending(entry.value)
-                                        ? daySpending(entry.value)
-                                        : null,
-                                  ),
-                                ),
-                                SliverToBoxAdapter(
-                                  child: DayCard(
-                                    items: entry.value,
-                                    onTap: (t) =>
-                                        openTxnEditor(context, _wallet, t),
-                                    onDelete: (t) =>
-                                        deleteWithUndo(context, _wallet, t),
-                                    canDelete: (t) =>
-                                        confirmDelete(context, _wallet, t),
-                                  ),
-                                ),
-                              ],
+                              SliverList.builder(
+                                itemCount: days.length,
+                                itemBuilder: (context, i) {
+                                  final entry = days[i];
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      GroupTitle(
+                                        formatDayHeader(entry.key, now: now),
+                                        // Day total counts expenses only; a
+                                        // day with only income shows no sum.
+                                        sum: hasSpending(entry.value)
+                                            ? daySpending(entry.value)
+                                            : null,
+                                      ),
+                                      DayCard(
+                                        items: entry.value,
+                                        onTap: (t) =>
+                                            openTxnEditor(context, _wallet, t),
+                                        onDelete: (t) =>
+                                            deleteWithUndo(context, _wallet, t),
+                                        canDelete: (t) =>
+                                            confirmDelete(context, _wallet, t),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                             // 96 dp of bottom padding lets the last entry
                             // scroll above the tab bar and the "+" button (plus
                             // the system gesture bar).

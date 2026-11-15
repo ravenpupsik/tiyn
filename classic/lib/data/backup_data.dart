@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:money_app/data/category.dart';
 import 'package:money_app/data/txn.dart';
 import 'package:money_app/theme/app_theme.dart';
 
@@ -136,7 +137,7 @@ class Backup {
     'id': j['id'] as String,
     'title': (j['title'] ?? '') as String,
     'amount': j['amount'] as int,
-    'category': (j['category'] ?? '') as String,
+    'category': canonicalCategory((j['category'] ?? '') as String),
     'due': j['due'],
   };
 
@@ -219,7 +220,7 @@ class Backup {
           id: id,
           amount: amount,
           kind: TxnKind.values.firstWhere((k) => k.name == kind),
-          category: (category ?? '') as String,
+          category: canonicalCategory((category ?? '') as String),
           note: (note ?? '') as String,
           date: DateTime.parse(date),
         ),
@@ -245,7 +246,7 @@ class Backup {
         'id': id,
         'title': title ?? '',
         'amount': amount,
-        'category': category ?? '',
+        'category': canonicalCategory((category ?? '') as String),
         'due': due,
       });
     }
@@ -279,8 +280,8 @@ class Backup {
       transactions: txs,
       plans: plans,
       piggyStart: piggy as int?,
-      lastCatExpense: lce as String?,
-      lastCatIncome: lci as String?,
+      lastCatExpense: lce == null ? null : canonicalCategory(lce as String),
+      lastCatIncome: lci == null ? null : canonicalCategory(lci as String),
       remindOn: on,
       remindH: h,
       remindM: m,

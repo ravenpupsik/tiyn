@@ -16,7 +16,7 @@ class FrostedGlass extends StatelessWidget {
     required this.child,
     this.radius = const BorderRadius.all(Radius.circular(28)),
     this.padding = const EdgeInsets.all(20),
-    this.blur = 14,
+    this.blur = 10,
     this.fill = 0,
   });
 

@@ -1,3 +1,5 @@
+import 'package:money_app/data/category.dart';
+
 /// Planned expense: money reserved but not yet spent. Does not change the
 /// balance, only the free amount.
 class Plan {
@@ -30,7 +32,7 @@ class Plan {
     id: j['id'] as String,
     title: (j['title'] ?? '') as String,
     amount: j['amount'] as int,
-    category: (j['category'] ?? '') as String,
+    category: canonicalCategory((j['category'] ?? '') as String),
     due: j['due'] == null ? null : DateTime.parse(j['due'] as String),
   );
 

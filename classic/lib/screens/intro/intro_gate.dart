@@ -42,10 +42,15 @@ class _IntroGateState extends State<IntroGate>
   // the screen was recreated and flickered for a frame.
   final _homeKey = GlobalKey();
 
-  static const _total = 1000.0;
+  // Letters appear, the dot pops, then the logo fades out completely before
+  // the app fades in, so the two never overlap.
+  static const _total = 620.0;
+  static const _logoOutStart = 0.42;
+  static const _logoOutEnd = 0.60;
   // Largest step per frame: if the phone stutters at launch, the animation
   // slows down instead of jumping.
   static const _maxStep = 34.0;
+  static const _big = 2.2;
 
   @override
   void didChangeDependencies() {
@@ -70,6 +75,8 @@ class _IntroGateState extends State<IntroGate>
     final dt = (now - _last).inMicroseconds / 1000.0;
     _last = now;
     _t.value = (_t.value + dt.clamp(0.0, _maxStep) / _total).clamp(0.0, 1.0);
+    // The header logo shows up together with the app, not before.
+    if (_t.value >= _logoOutEnd) introRunning.value = false;
     if (_t.value >= 1) _finish();
   }
 
@@ -98,13 +105,6 @@ class _IntroGateState extends State<IntroGate>
     final dark = isDark(context);
     final fg = Theme.of(context).colorScheme.onSurface;
     final style = logoStyle(fg);
-    final tp = TextPainter(
-      text: TextSpan(text: 'Tiyn', style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    var logoSize = tp.size;
-    tp.dispose();
-    const big = 2.2;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -115,27 +115,10 @@ class _IntroGateState extends State<IntroGate>
           animation: _t,
           child: home,
           builder: (context, child) {
-            final screen = MediaQuery.sizeOf(context);
-            final reveal = _iv(0.0, 0.4, Curves.easeOut);
-            final dot = _iv(0.32, 0.5, Curves.easeOutBack);
-            final move = _iv(0.5, 0.9, Curves.easeInOutCubic);
-            final bgFade = _iv(0.55, 0.9);
-            final content = _iv(0.55, 1.0, Curves.easeOutCubic);
-            final dotFade = 1 - _iv(0.6, 0.8);
-
-            Offset to = Offset(20, MediaQuery.paddingOf(context).top + 12);
-            final box =
-                logoKey.currentContext?.findRenderObject() as RenderBox?;
-            if (box != null && box.hasSize) {
-              to = box.localToGlobal(Offset.zero);
-              logoSize = box.size;
-            }
-            final from = Offset(
-              (screen.width - logoSize.width * big) / 2,
-              (screen.height - logoSize.height * big) / 2,
-            );
-            final pos = Offset.lerp(from, to, move)!;
-            final scale = big + (1 - big) * move;
+            final reveal = _iv(0.0, 0.26, Curves.easeOut);
+            final dot = _iv(0.2, 0.36, Curves.easeOutBack);
+            final logoFade = _iv(_logoOutStart, _logoOutEnd);
+            final content = _iv(_logoOutEnd, 1.0, Curves.easeOut);
 
             return Stack(
               children: [
@@ -143,7 +126,7 @@ class _IntroGateState extends State<IntroGate>
                   child: Opacity(
                     opacity: content,
                     child: Transform.scale(
-                      scale: 0.97 + 0.03 * content,
+                      scale: 0.98 + 0.02 * content,
                       child: child,
                     ),
                   ),
@@ -151,52 +134,57 @@ class _IntroGateState extends State<IntroGate>
                 Positioned.fill(
                   child: IgnorePointer(
                     child: ColoredBox(
-                      color: introBg(dark).withValues(alpha: 1 - bgFade),
+                      color: introBg(dark).withValues(alpha: 1 - content),
                     ),
                   ),
                 ),
-                Positioned(
-                  left: pos.dx,
-                  top: pos.dy,
-                  child: Transform.scale(
-                    scale: scale,
-                    alignment: Alignment.topLeft,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ShaderMask(
-                          blendMode: BlendMode.dstIn,
-                          shaderCallback: (r) => LinearGradient(
-                            colors: const [Colors.white, Colors.transparent],
-                            stops: [
-                              (reveal * 1.15 - 0.1).clamp(0.0, 1.0),
-                              (reveal * 1.15).clamp(0.0, 1.0),
-                            ],
-                          ).createShader(r),
-                          child: Text('Tiyn', style: style),
-                        ),
-                        Positioned(
-                          right: -10,
-                          bottom: 9,
-                          child: Opacity(
-                            opacity: dotFade,
-                            child: Transform.scale(
-                              scale: dot.clamp(0.0, 1.3),
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: accentOf(context),
-                                  shape: BoxShape.circle,
+                if (logoFade < 1)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Opacity(
+                          opacity: 1 - logoFade,
+                          child: Transform.scale(
+                            scale: _big,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                ShaderMask(
+                                  blendMode: BlendMode.dstIn,
+                                  shaderCallback: (r) => LinearGradient(
+                                    colors: const [
+                                      Colors.white,
+                                      Colors.transparent,
+                                    ],
+                                    stops: [
+                                      (reveal * 1.15 - 0.1).clamp(0.0, 1.0),
+                                      (reveal * 1.15).clamp(0.0, 1.0),
+                                    ],
+                                  ).createShader(r),
+                                  child: Text('Tiyn', style: style),
                                 ),
-                              ),
+                                Positioned(
+                                  right: -10,
+                                  bottom: 9,
+                                  child: Transform.scale(
+                                    scale: dot.clamp(0.0, 1.3),
+                                    child: Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: accentOf(context),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
               ],
             );
           },

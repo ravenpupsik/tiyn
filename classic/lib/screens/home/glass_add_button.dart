@@ -48,7 +48,7 @@ class _GlassAddButtonState extends State<GlassAddButton> {
           ),
           child: ClipOval(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: CustomPaint(
                 painter: _GlassOrbPainter(dark: dark),
                 child: Center(
